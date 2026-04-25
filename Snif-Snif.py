@@ -1,82 +1,65 @@
 import socket
 import threading
-from queue import Queue
 import ipaddress
+import tkinter as tk
+from tkinter import scrolledtext
 
-# Common ports to scan
-COMMON_PORTS = [21, 22, 23, 25, 53, 80, 110, 139, 143, 443, 445, 8080]
+COMMON_PORTS = [21, 22, 23, 80, 443, 8080]
 
-# Thread-safe queue
-queue = Queue()
-
-# Lock for clean output
-print_lock = threading.Lock()
-
-
-def scan_port(ip, port):
+def scan_port(ip, port, output):
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(0.5)
         result = s.connect_ex((str(ip), port))
         if result == 0:
-            with print_lock:
-                print(f"[OPEN] {ip}:{port}")
+            output.insert(tk.END, f"[OPEN] {ip}:{port}\n")
         s.close()
     except:
         pass
 
-
-def worker():
-    while not queue.empty():
-        ip, port = queue.get()
-        scan_port(ip, port)
-        queue.task_done()
-
-
-def scan_host(ip):
-    print(f"\n[+] Scanning host: {ip}")
+def scan_host(ip, output):
+    output.insert(tk.END, f"\n[+] Scanning host: {ip}\n")
     for port in COMMON_PORTS:
-        queue.put((ip, port))
+        scan_port(ip, port, output)
+    output.insert(tk.END, "[✓] Done\n")
 
-
-def scan_network(network):
-    print(f"\n[+] Scanning network: {network}")
+def scan_network(network, output):
+    output.insert(tk.END, f"\n[+] Scanning network: {network}\n")
     try:
         net = ipaddress.ip_network(network, strict=False)
         for ip in net.hosts():
             for port in COMMON_PORTS:
-                queue.put((ip, port))
-    except ValueError:
-        print("[-] Invalid network format (example: 192.168.1.0/24)")
+                scan_port(ip, port, output)
+        output.insert(tk.END, "[✓] Done\n")
+    except:
+        output.insert(tk.END, "[-] Invalid network format\n")
 
+def start_scan():
+    target = entry.get()
+    mode = var.get()
 
-def run_threads(thread_count=100):
-    for _ in range(thread_count):
-        t = threading.Thread(target=worker)
-        t.daemon = True
-        t.start()
+    output.delete(1.0, tk.END)
 
-    queue.join()
-
-
-if __name__ == "__main__":
-    print("Simple Port Scanner")
-    print("1. Scan single host")
-    print("2. Scan network")
-
-    choice = input("Choose option (1/2): ")
-
-    if choice == "1":
-        target = input("Enter IP address: ")
-        scan_host(target)
-
-    elif choice == "2":
-        network = input("Enter network (e.g. 192.168.1.0/24): ")
-        scan_network(network)
-
+    if mode == "host":
+        threading.Thread(target=scan_host, args=(target, output)).start()
     else:
-        print("Invalid choice")
-        exit()
+        threading.Thread(target=scan_network, args=(target, output)).start()
 
-    run_threads()
-    print("\n[✓] Scan complete")
+# GUI setup
+root = tk.Tk()
+root.title("Python Port Scanner")
+
+tk.Label(root, text="Target (IP or Network):").pack()
+entry = tk.Entry(root, width=30)
+entry.pack()
+
+var = tk.StringVar(value="host")
+tk.Radiobutton(root, text="Single Host", variable=var, value="host").pack()
+tk.Radiobutton(root, text="Network", variable=var, value="network").pack()
+
+tk.Button(root, text="Start Scan", command=start_scan).pack()
+
+output = scrolledtext.ScrolledText(root, width=60, height=20)
+output.pack()
+
+root.mainloop()
