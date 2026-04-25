@@ -37,9 +37,7 @@ def scan_network(network, output):
 def start_scan():
     target = entry.get()
     mode = var.get()
-
     output.delete(1.0, tk.END)
-
     if mode == "host":
         threading.Thread(target=scan_host, args=(target, output)).start()
     else:
@@ -48,18 +46,13 @@ def start_scan():
 # GUI setup
 root = tk.Tk()
 root.title("Python Port Scanner")
-
 tk.Label(root, text="Target (IP or Network):").pack()
 entry = tk.Entry(root, width=30)
 entry.pack()
-
 var = tk.StringVar(value="host")
 tk.Radiobutton(root, text="Single Host", variable=var, value="host").pack()
 tk.Radiobutton(root, text="Network", variable=var, value="network").pack()
-
 tk.Button(root, text="Start Scan", command=start_scan).pack()
-
 output = scrolledtext.ScrolledText(root, width=60, height=20)
 output.pack()
-
 root.mainloop()
